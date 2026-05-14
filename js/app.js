@@ -4,34 +4,89 @@
 
 let currentUser = null;
 let currentView = 'dashboard';
+let dbReady = false;
+let useCloud = false; // 云端模式开关
 
-// 初始化应用
+// ============================================
+//  初始化应用
+// ============================================
 async function init() {
+  // 显示加载画面
+  showLoading(true);
+
+  // 尝试初始化本地数据库
   try {
-    await openDB();
-    await initPresetFoods();
+    await Promise.race([
+      (async () => { await openDB(); await initPresetFoods(); })(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('db_timeout')), 5000))
+    ]);
+    dbReady = true;
+    console.log('本地数据库就绪');
   } catch (err) {
-    console.error('数据库初始化失败:', err);
-    showToast('数据加载失败，请刷新重试');
-    return;
+    console.warn('本地数据库初始化失败，使用内存模式:', err.message);
+    dbReady = false;
   }
 
-  // 检查登录状态
-  const userId = localStorage.getItem('currentUserId');
+  // 初始化云端连接
+  try {
+    await initCloud();
+    useCloud = true;
+    console.log('云端连接就绪');
+  } catch (err) {
+    console.warn('云端不可用，使用本地模式:', err.message);
+    useCloud = false;
+  }
+
+  // 检查登录状态（优先云端，其次本地）
+  let userId = null;
+
+  if (useCloud) {
+    userId = await cloudGetSession();
+  }
+  if (!userId) {
+    userId = localStorage.getItem('currentUserId');
+  }
+
   if (userId) {
-    const user = await dbGet('users', parseInt(userId));
-    if (user) {
-      currentUser = user;
-      switchToApp();
-      return;
+    try {
+      let user = null;
+      if (useCloud) {
+        user = await cloudGetUser(userId);
+      }
+      if (!user && dbReady) {
+        user = await dbGet('users', parseInt(userId));
+      }
+      if (user) {
+        currentUser = user;
+        // 同步 localStorage
+        localStorage.setItem('currentUserId', user.id);
+        showLoading(false);
+        switchToApp();
+        return;
+      }
+    } catch (err) {
+      console.warn('加载用户失败:', err.message);
     }
   }
 
-  // 未登录
+  // 未登录，显示登录页
+  showLoading(false);
   switchToAuth();
 }
 
-// 切换到登录页
+function showLoading(show) {
+  const el = document.getElementById('loading-screen');
+  if (!el) return;
+  if (show) {
+    el.classList.remove('done');
+  } else {
+    el.classList.add('done');
+  }
+}
+
+// ============================================
+//  页面切换
+// ============================================
 function switchToAuth() {
   document.getElementById('page-auth').classList.add('active');
   document.getElementById('page-app').classList.remove('active');
@@ -41,7 +96,6 @@ function switchToAuth() {
   document.getElementById('login-password').value = '';
 }
 
-// 切换到主应用
 function switchToApp() {
   document.getElementById('page-auth').classList.remove('active');
   document.getElementById('page-app').classList.add('active');
@@ -49,61 +103,78 @@ function switchToApp() {
   refreshDashboard();
 }
 
-// 切换视图
 function showView(viewName) {
   currentView = viewName;
 
-  // 隐藏所有视图
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  const target = document.getElementById(`view-${viewName}`);
+  if (target) target.classList.add('active');
 
-  // 显示目标视图
-  document.getElementById(`view-${viewName}`).classList.add('active');
-
-  // 更新导航高亮
   document.querySelectorAll('.nav-item[data-view]').forEach(item => {
     item.classList.toggle('active', item.dataset.view === viewName);
   });
 
-  // 刷新视图内容
-  if (viewName === 'dashboard') refreshDashboard();
-  if (viewName === 'foodlib') refreshFoodLibrary();
-  if (viewName === 'calendar') refreshCalendar();
-  if (viewName === 'settings') refreshSettings();
+  // 刷新视图（带错误处理）
+  try {
+    if (viewName === 'dashboard') refreshDashboard();
+    if (viewName === 'foodlib') refreshFoodLibrary();
+    if (viewName === 'calendar') refreshCalendar();
+    if (viewName === 'settings') refreshSettings();
+  } catch (err) {
+    console.error('页面渲染失败:', viewName, err);
+    showToast('页面加载出错，请重试');
+  }
 }
 
-// 退出登录
+// ============================================
+//  退出登录
+// ============================================
 async function logout() {
   const ok = await showConfirm('确定要退出登录吗？');
   if (!ok) return;
   localStorage.removeItem('currentUserId');
+  if (useCloud) await cloudSignOut();
   currentUser = null;
   switchToAuth();
   showToast('已退出登录');
 }
 
 // ============================================
-//  底部导航事件
+//  底部导航事件（延迟绑定）
 // ============================================
-document.querySelectorAll('.nav-item[data-view]').forEach(item => {
-  item.addEventListener('click', () => {
-    showView(item.dataset.view);
+function bindNavigation() {
+  document.querySelectorAll('.nav-item[data-view]').forEach(item => {
+    item.addEventListener('click', () => {
+      showView(item.dataset.view);
+    });
   });
-});
 
-// 快速添加按钮
-document.getElementById('btn-quick-add').addEventListener('click', () => {
-  showQuickAddModal();
-});
+  const quickAddBtn = document.getElementById('btn-quick-add');
+  if (quickAddBtn) {
+    quickAddBtn.addEventListener('click', () => {
+      if (typeof showQuickAddModal === 'function') showQuickAddModal();
+    });
+  }
 
-// 设置按钮（头部）
-document.getElementById('btn-settings').addEventListener('click', () => {
-  showView('settings');
-});
+  const settingsBtn = document.getElementById('btn-settings');
+  if (settingsBtn) {
+    settingsBtn.addEventListener('click', () => showView('settings'));
+  }
+}
 
-// 页面加载完成后初始化
+// ============================================
+//  启动
+// ============================================
 document.addEventListener('DOMContentLoaded', () => {
-  init();
-  // 注册 Service Worker（PWA）
+  bindNavigation();
+  init().catch(err => {
+    console.error('初始化失败:', err);
+    showLoading(false);
+    // 最坏情况：直接显示登录页
+    switchToAuth();
+  });
+
+  // 注册 Service Worker
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
   }

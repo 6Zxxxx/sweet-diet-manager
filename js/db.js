@@ -122,7 +122,20 @@ async function loginUser(username, passwordHash) {
 }
 
 async function updateUser(user) {
-  await dbPut('users', user);
+  if (dbReady) await dbPut('users', user);
+  // 同步到云端
+  if (useCloud) {
+    try {
+      const data = await cloudGetFullData();
+      if (data) {
+        data.height = user.height;
+        data.weight = user.weight;
+        data.age = user.age;
+        data.gender = user.gender;
+        await cloudSaveFullData(data);
+      }
+    } catch (e) {}
+  }
   return user;
 }
 
@@ -131,14 +144,51 @@ async function updateUser(user) {
 // ============================================
 
 async function getAllFoods(userId) {
-  const presetFoods = await dbGetByIndex('foods', 'userId', 0);
-  const userFoods = await dbGetByIndex('foods', 'userId', userId);
-  return [...presetFoods, ...userFoods];
+  // 预置食物总是可用
+  let presetFoods = [];
+  if (dbReady) {
+    presetFoods = await dbGetByIndex('foods', 'userId', 0);
+  }
+  // 如果数据库不可用，直接从 PRESET_FOODS 返回
+  if (presetFoods.length === 0) {
+    presetFoods = PRESET_FOODS.map((f, i) => ({ ...f, id: -i - 1 }));
+  }
+
+  // 本地自定义食物
+  let userFoods = [];
+  if (dbReady) {
+    userFoods = await dbGetByIndex('foods', 'userId', userId);
+  }
+
+  // 云端自定义食物
+  let cloudFoods = [];
+  if (useCloud) {
+    try {
+      const data = await cloudGetFullData();
+      if (data && data.customFoods) {
+        cloudFoods = data.customFoods;
+      }
+    } catch (e) {}
+  }
+
+  return [...presetFoods, ...userFoods, ...cloudFoods];
 }
 
 async function addCustomFood(food) {
   food.isCustom = true;
-  return await dbPut('foods', food);
+  const result = dbReady ? await dbPut('foods', food) : food;
+  // 同步到云端
+  if (useCloud) {
+    try {
+      const data = await cloudGetFullData();
+      if (data) {
+        data.customFoods = data.customFoods || [];
+        data.customFoods.push(food);
+        await cloudSaveFullData(data);
+      }
+    } catch (e) {}
+  }
+  return result;
 }
 
 async function deleteCustomFood(foodId) {
@@ -155,23 +205,63 @@ async function deleteCustomFood(foodId) {
 // ============================================
 
 async function addRecord(record) {
-  return await dbPut('dailyRecords', record);
+  const result = dbReady ? await dbPut('dailyRecords', record) : record;
+  // 云端同步（后台进行，不阻塞）
+  if (useCloud) {
+    cloudAddRecord(record).catch(() => {});
+  }
+  return result;
 }
 
 async function getRecordsByDate(dateStr, userId) {
-  const all = await dbGetByIndex('dailyRecords', 'date', dateStr);
-  return all.filter(r => r.userId === userId);
+  let records = [];
+  // 优先从云端获取
+  if (useCloud) {
+    try {
+      const cloudData = await cloudGetFullData();
+      if (cloudData && cloudData.records) {
+        records = cloudData.records.filter(r => r.date === dateStr);
+        return records;
+      }
+    } catch (e) {}
+  }
+  // 本地兜底
+  if (dbReady) {
+    const all = await dbGetByIndex('dailyRecords', 'date', dateStr);
+    records = all.filter(r => r.userId === userId);
+  }
+  return records;
 }
 
 async function deleteRecord(recordId) {
-  await dbDelete('dailyRecords', recordId);
+  if (dbReady) await dbDelete('dailyRecords', recordId);
+  if (useCloud) {
+    cloudDeleteRecord(recordId).catch(() => {});
+  }
 }
 
 async function getRecordsByDateRange(startDate, endDate, userId) {
-  const all = await dbGetAll('dailyRecords');
-  return all.filter(r => {
-    return r.userId === userId && r.date >= startDate && r.date <= endDate;
-  });
+  let records = [];
+  // 优先从云端获取
+  if (useCloud) {
+    try {
+      const cloudData = await cloudGetFullData();
+      if (cloudData && cloudData.records) {
+        records = cloudData.records.filter(r => {
+          return r.date >= startDate && r.date <= endDate;
+        });
+        return records;
+      }
+    } catch (e) {}
+  }
+  // 本地兜底
+  if (dbReady) {
+    const all = await dbGetAll('dailyRecords');
+    records = all.filter(r => {
+      return r.userId === userId && r.date >= startDate && r.date <= endDate;
+    });
+  }
+  return records;
 }
 
 // ============================================
