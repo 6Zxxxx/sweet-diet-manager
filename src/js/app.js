@@ -115,14 +115,22 @@ function showView(viewName) {
   });
 
   // 刷新视图（带错误处理）
+  refreshCurrentView();
+}
+
+// 数据变更后刷新当前活跃视图
+function notifyDataChanged() {
+  refreshCurrentView();
+}
+
+function refreshCurrentView() {
   try {
-    if (viewName === 'dashboard') refreshDashboard();
-    if (viewName === 'foodlib') refreshFoodLibrary();
-    if (viewName === 'calendar') refreshCalendar();
-    if (viewName === 'settings') refreshSettings();
+    if (currentView === 'dashboard') refreshDashboard();
+    if (currentView === 'foodlib') refreshFoodLibrary();
+    if (currentView === 'calendar') refreshCalendar();
+    if (currentView === 'settings') refreshSettings();
   } catch (err) {
-    console.error('页面渲染失败:', viewName, err);
-    showToast('页面加载出错，请重试');
+    console.error('刷新视图失败:', currentView, err);
   }
 }
 

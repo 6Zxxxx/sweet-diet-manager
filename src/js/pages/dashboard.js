@@ -276,6 +276,6 @@ function showMealQuickRecord(food, mealType) {
     });
     closeModal();
     showToast(`已记录${mealInfo.label}：${food.name}`);
-    refreshDashboard();
+    notifyDataChanged();
   });
 }
