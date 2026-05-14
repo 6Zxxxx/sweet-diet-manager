@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#FFB6C1">
+  <meta name="description" content="甜甜的饮食管理 - 记录每一餐的美好">
+  <title>甜甜的饮食管理</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-512.png">
+</head>
+<body>
+
+<!-- ==================== 登录/注册页 ==================== -->
+<div id="page-auth" class="page active">
+  <div class="auth-container">
+    <div class="auth-logo">
+      <div class="logo-icon">🍰</div>
+      <h1>甜甜的饮食管理</h1>
+      <p class="logo-subtitle">记录每一餐的美好 ✨</p>
+    </div>
+
+    <!-- 登录表单 -->
+    <div id="login-form" class="auth-form">
+      <h2>欢迎回来</h2>
+      <div class="input-group">
+        <label>用户名</label>
+        <input type="text" id="login-username" placeholder="请输入用户名" autocomplete="username">
+      </div>
+      <div class="input-group">
+        <label>密码</label>
+        <input type="password" id="login-password" placeholder="请输入密码" autocomplete="current-password">
+      </div>
+      <button class="btn btn-primary btn-block" id="btn-login">登 录</button>
+      <p class="form-switch">还没有账号？<a href="#" id="switch-to-register">立即注册</a></p>
+    </div>
+
+    <!-- 注册表单 -->
+    <div id="register-form" class="auth-form hidden">
+      <h2>创建账号</h2>
+      <div class="input-group">
+        <label>用户名</label>
+        <input type="text" id="reg-username" placeholder="请输入用户名">
+      </div>
+      <div class="input-group">
+        <label>密码</label>
+        <input type="password" id="reg-password" placeholder="请设置密码（至少6位）">
+      </div>
+      <div class="input-group">
+        <label>确认密码</label>
+        <input type="password" id="reg-password2" placeholder="请再次输入密码">
+      </div>
+      <div class="reg-info-section">
+        <h3>📋 基本信息（可选，可后续设置）</h3>
+        <div class="input-row">
+          <div class="input-group">
+            <label>身高 (cm)</label>
+            <input type="number" id="reg-height" placeholder="160" min="50" max="250">
+          </div>
+          <div class="input-group">
+            <label>体重 (kg)</label>
+            <input type="number" id="reg-weight" placeholder="55" min="10" max="300">
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-group">
+            <label>年龄</label>
+            <input type="number" id="reg-age" placeholder="25" min="1" max="120">
+          </div>
+          <div class="input-group">
+            <label>性别</label>
+            <select id="reg-gender">
+              <option value="female">女</option>
+              <option value="male">男</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-block" id="btn-register">注 册</button>
+      <p class="form-switch">已有账号？<a href="#" id="switch-to-login">立即登录</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 主应用 ==================== -->
+<div id="page-app" class="page">
+
+  <!-- 顶部导航栏 -->
+  <header class="app-header">
+    <div class="header-left">
+      <span class="header-icon">🍬</span>
+      <span class="header-title">甜甜的饮食管理</span>
+    </div>
+    <div class="header-right">
+      <button class="btn-icon" id="btn-settings" title="设置">⚙️</button>
+    </div>
+  </header>
+
+  <!-- 页面内容容器 -->
+  <main class="app-content">
+    <!-- 仪表盘 -->
+    <div id="view-dashboard" class="view active"></div>
+    <!-- 食物库 -->
+    <div id="view-foodlib" class="view"></div>
+    <!-- 日历 -->
+    <div id="view-calendar" class="view"></div>
+    <!-- 设置 -->
+    <div id="view-settings" class="view"></div>
+  </main>
+
+  <!-- 底部导航 -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-view="dashboard">
+      <span class="nav-icon">🏠</span>
+      <span class="nav-label">首页</span>
+    </button>
+    <button class="nav-item" data-view="foodlib">
+      <span class="nav-icon">🍔</span>
+      <span class="nav-label">食物库</span>
+    </button>
+    <button class="nav-item nav-item-add" id="btn-quick-add">
+      <span class="nav-icon-add">＋</span>
+    </button>
+    <button class="nav-item" data-view="calendar">
+      <span class="nav-icon">📅</span>
+      <span class="nav-label">日历</span>
+    </button>
+    <button class="nav-item" data-view="settings">
+      <span class="nav-icon">⚙️</span>
+      <span class="nav-label">设置</span>
+    </button>
+  </nav>
+</div>
+
+<!-- ==================== 通用弹窗容器 ==================== -->
+<div id="modal-overlay" class="modal-overlay hidden">
+  <div class="modal-content" id="modal-content"></div>
+</div>
+
+<!-- ==================== Toast 提示 ==================== -->
+<div id="toast" class="toast hidden"></div>
+
+<script src="js/utils.js"></script>
+<script src="js/foodData.js"></script>
+<script src="js/db.js"></script>
+<script src="js/pages/login.js"></script>
+<script src="js/pages/dashboard.js"></script>
+<script src="js/pages/foodLibrary.js"></script>
+<script src="js/pages/calendar.js"></script>
+<script src="js/pages/record.js"></script>
+<script src="js/pages/settings.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
