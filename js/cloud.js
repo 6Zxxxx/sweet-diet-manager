@@ -163,7 +163,12 @@ async function cloudAddRecord(record) {
 async function cloudDeleteRecord(recordId) {
   const data = await cloudGetFullData();
   if (!data) return;
-  data.records = (data.records || []).filter(r => r.id !== recordId);
+  // 同时按 id 和内容签名匹配删除（兼容本地/云端不同ID）
+  data.records = (data.records || []).filter(r => {
+    if (r.id === recordId) return false;          // 精确ID匹配
+    if (String(r.id) === String(recordId)) return false; // 类型转换匹配
+    return true;
+  });
   await cloudSaveFullData(data);
 }
 

@@ -122,7 +122,7 @@ function refreshSettings() {
 
     await updateUser(currentUser);
     showToast('个人信息已更新～');
-    refreshSettings();
+    notifyDataChanged();
   });
 
   // 修改密码
@@ -144,6 +144,7 @@ function refreshSettings() {
     document.getElementById('set-old-pwd').value = '';
     document.getElementById('set-new-pwd').value = '';
     document.getElementById('set-new-pwd2').value = '';
+    notifyDataChanged();
   });
 
   // 导出数据
@@ -183,6 +184,7 @@ function refreshSettings() {
       if (f.isCustom) await deleteCustomFood(f.id);
     }
     showToast('所有数据已清除');
+    notifyDataChanged();
   });
 
   // 退出登录
