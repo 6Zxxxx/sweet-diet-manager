@@ -1,0 +1,47 @@
+{
+  "name": "sweet-diet-manager",
+  "version": "1.0.0",
+  "description": "甜甜的饮食管理 - 记录每一餐的美好",
+  "main": "main.js",
+  "author": "SweetDiet",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win portable",
+    "build:installer": "electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "com.sweetdiet.manager",
+    "productName": "甜甜的饮食管理",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.mjs",
+      "main.js",
+      "preload.js",
+      "src/**/*"
+    ],
+    "win": {
+      "icon": "src/icons/icon-512.png",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "甜甜的饮食管理",
+      "installerLanguages": ["zh_CN", "en_US"]
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  }
+}
