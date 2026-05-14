@@ -204,9 +204,30 @@ async function deleteCustomFood(foodId) {
 //  饮食记录相关
 // ============================================
 
+function _genId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
+}
+
+function _mergeRecords(localRecords, cloudRecords) {
+  // 用 (date, mealType, foodId, servings) 去重
+  const seen = new Set();
+  const merged = [];
+  for (const r of [...localRecords, ...cloudRecords]) {
+    const key = `${r.date}|${r.mealType}|${r.foodId}|${r.servings}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      merged.push(r);
+    }
+  }
+  return merged;
+}
+
 async function addRecord(record) {
+  // 统一使用时间戳+随机ID，确保跨设备唯一
+  if (!record.id || typeof record.id === 'number') record.id = _genId();
+  if (!record.syncedAt) record.syncedAt = new Date().toISOString();
   const result = dbReady ? await dbPut('dailyRecords', record) : record;
-  // 云端同步（后台进行，不阻塞）
+  // 云端同步
   if (useCloud) {
     cloudAddRecord(record).catch(() => {});
   }
@@ -214,54 +235,64 @@ async function addRecord(record) {
 }
 
 async function getRecordsByDate(dateStr, userId) {
-  let records = [];
-  // 优先从云端获取
+  const localRecords = [];
+  const cloudRecords = [];
+
+  // 本地数据
+  if (dbReady) {
+    try {
+      const all = await dbGetByIndex('dailyRecords', 'date', dateStr);
+      localRecords.push(...all.filter(r => r.userId === userId));
+    } catch (e) {}
+  }
+
+  // 云端数据
   if (useCloud) {
     try {
       const cloudData = await cloudGetFullData();
       if (cloudData && cloudData.records) {
-        records = cloudData.records.filter(r => r.date === dateStr);
-        return records;
+        cloudRecords.push(...cloudData.records.filter(r => r.date === dateStr));
       }
     } catch (e) {}
   }
-  // 本地兜底
-  if (dbReady) {
-    const all = await dbGetByIndex('dailyRecords', 'date', dateStr);
-    records = all.filter(r => r.userId === userId);
-  }
-  return records;
+
+  return _mergeRecords(localRecords, cloudRecords);
 }
 
 async function deleteRecord(recordId) {
-  if (dbReady) await dbDelete('dailyRecords', recordId);
+  if (dbReady) {
+    try { await dbDelete('dailyRecords', recordId); } catch (e) {}
+  }
   if (useCloud) {
     cloudDeleteRecord(recordId).catch(() => {});
   }
 }
 
 async function getRecordsByDateRange(startDate, endDate, userId) {
-  let records = [];
-  // 优先从云端获取
+  const localRecords = [];
+  const cloudRecords = [];
+
+  if (dbReady) {
+    try {
+      const all = await dbGetAll('dailyRecords');
+      localRecords.push(...all.filter(r =>
+        r.userId === userId && r.date >= startDate && r.date <= endDate
+      ));
+    } catch (e) {}
+  }
+
   if (useCloud) {
     try {
       const cloudData = await cloudGetFullData();
       if (cloudData && cloudData.records) {
-        records = cloudData.records.filter(r => {
-          return r.date >= startDate && r.date <= endDate;
-        });
-        return records;
+        cloudRecords.push(...cloudData.records.filter(r =>
+          r.date >= startDate && r.date <= endDate
+        ));
       }
     } catch (e) {}
   }
-  // 本地兜底
-  if (dbReady) {
-    const all = await dbGetAll('dailyRecords');
-    records = all.filter(r => {
-      return r.userId === userId && r.date >= startDate && r.date <= endDate;
-    });
-  }
-  return records;
+
+  return _mergeRecords(localRecords, cloudRecords);
 }
 
 // ============================================
