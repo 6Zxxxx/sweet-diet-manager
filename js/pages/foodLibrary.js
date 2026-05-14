@@ -180,9 +180,7 @@ function showAddFoodModal(food) {
     await addRecord(record);
     closeModal();
     showToast(`已记录：${food.name} ${servings}份`);
-    // 刷新所有相关视图
-    try { refreshDashboard(); } catch (e) {}
-    try { refreshCalendar(); } catch (e) {}
+    notifyDataChanged();
   });
 }
 
