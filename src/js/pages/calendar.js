@@ -204,6 +204,7 @@ async function renderDayRecords() {
       await deleteRecord(recordId);
       await loadDayRecords(selectedDate);
       await renderDayRecords();
+      notifyDataChanged();
       showToast('已删除');
     });
   });

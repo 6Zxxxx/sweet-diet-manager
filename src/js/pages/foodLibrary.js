@@ -260,6 +260,6 @@ function showCustomFoodForm() {
     await addCustomFood(food);
     closeModal();
     showToast(`已添加自定义食物：${name}`);
-    renderFoodList();
+    notifyDataChanged();
   });
 }
